@@ -80,6 +80,7 @@ class Coder:
         io=None,
         from_coder=None,
         summarize_from_coder=True,
+        compact_mode=False,
         **kwargs,
     ):
         from . import (
