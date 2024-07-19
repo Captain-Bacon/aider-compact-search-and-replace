@@ -22,32 +22,73 @@ class EditBlockCoder(Coder):
     def get_edits(self):
         content = self.partial_response_content
 
-        # might raise ValueError for malformed ORIG/UPD blocks
-        edits = list(find_original_update_blocks(content, self.fence))
+        if self.compact_mode:
+            edits = list(find_compact_blocks(content))
+        else:
+            edits = list(find_original_update_blocks(content, self.fence))
 
         return edits
+
+def find_compact_blocks(content):
+    import re
+    import json
+
+    pattern = r'\[("[^"]+", \d+, "[^"]+", "(?:[^"\\]|\\.)*")\]'
+    matches = re.finditer(pattern, content)
+
+    for match in matches:
+        try:
+            block = json.loads('[' + match.group(1) + ']')
+            if len(block) == 4:
+                yield block
+        except json.JSONDecodeError:
+            continue
 
     def apply_edits(self, edits):
         failed = []
         passed = []
         for edit in edits:
-            path, original, updated = edit
-            full_path = self.abs_root_path(path)
-            content = self.io.read_text(full_path)
-            new_content = do_replace(full_path, content, original, updated, self.fence)
-            if not new_content:
-                # try patching any of the other files in the chat
-                for full_path in self.abs_fnames:
-                    content = self.io.read_text(full_path)
-                    new_content = do_replace(full_path, content, original, updated, self.fence)
-                    if new_content:
-                        break
+            if self.compact_mode:
+                path = self.get_file_path_from_compact_edit(edit)
+                full_path = self.abs_root_path(path)
+                content = self.io.read_text(full_path)
+                new_content = self.apply_compact_edit(content, edit)
+            else:
+                path, original, updated = edit
+                full_path = self.abs_root_path(path)
+                content = self.io.read_text(full_path)
+                new_content = do_replace(full_path, content, original, updated, self.fence)
 
             if new_content:
                 self.io.write_text(full_path, new_content)
                 passed.append(edit)
             else:
                 failed.append(edit)
+
+    def get_file_path_from_compact_edit(self, edit):
+        # Extract the file path from the first line of the edit
+        return edit[0].split(':')[0].strip()
+
+    def apply_compact_edit(self, content, edit):
+        first_line, num_lines, last_line, replacement = edit
+        lines = content.splitlines()
+        
+        start_index = -1
+        end_index = -1
+        
+        for i, line in enumerate(lines):
+            if line.strip() == first_line.strip():
+                start_index = i
+                break
+        
+        if start_index != -1:
+            end_index = start_index + num_lines - 1
+            
+            if end_index < len(lines) and lines[end_index].strip() == last_line.strip():
+                lines[start_index:end_index+1] = replacement.splitlines()
+                return '\n'.join(lines)
+        
+        return None
 
         if not failed:
             return
