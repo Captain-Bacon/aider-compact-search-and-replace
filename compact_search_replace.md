@@ -14,46 +14,58 @@ Implement a token-efficient approach for search and replace blocks as an optiona
 ## Implementation Considerations
 
 ### 1. Code Ingestion and AI Representation
+
 - Modify how code is initially processed and presented to the AI.
 - Create a mapping between line numbers and content, or generate unique identifiers for code blocks.
 
 ### 2. Error Handling
+
 - Update the error handling system to work with references instead of direct text matches.
 - Provide context when a reference doesn't match, including surrounding lines.
 
 ### 3. Verification Mechanism
+
 - Implement a checksum or hash of the block contents.
 - Include the first and last lines of the block to be replaced as a built-in verification mechanism.
 
 ### 4. AI Prompt Updates
+
 - Instruct the AI on how to generate compact references.
 - Update prompts to include examples of the new format.
 
 ### 5. Parsing and Interpretation
+
 - Create new functions to parse the compact format and expand it into full SEARCH/REPLACE blocks.
 
 ### 6. User Interface
+
 - Update the UI to display both compact and expanded versions of edits.
 
 ### 7. Version Control Integration
+
 - Consider how this change affects integration with version control systems.
 
 ### 8. Performance Considerations
+
 - Measure the impact on processing time and memory usage, especially for large files.
 
 ### 9. Backwards Compatibility
+
 - Implement a way to switch between compact and standard modes to maintain compatibility with existing workflows.
 
 ### 10. Testing Framework
+
 - Develop comprehensive tests for the new functionality, including edge cases and potential failure modes.
 
 ## Implementation Steps
 
 ### 1. Core Changes
+
 - Modify `EditBlockCoder` class to include compact mode functionality.
 - Update `get_edits`, `apply_edits`, and implement new functions for compact parsing.
 
 ### 2. Supporting Changes
+
 - Update `Coder` base class in `base_coder.py` to support compact mode.
 - Modify `InputOutput` class in `io.py` to handle displaying compact vs. expanded edits.
 - Add `/compact_sr` command in `commands.py`.
@@ -65,6 +77,7 @@ Implement a token-efficient approach for search and replace blocks as an optiona
 - Modify prompts in `editblock_prompts.py` to include instructions for compact mode.
 
 ### 3. Testing and Documentation
+
 - Create new test files or update existing ones to cover the new functionality.
 - Update user documentation to explain the new compact mode feature.
 
