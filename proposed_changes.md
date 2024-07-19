@@ -6,7 +6,7 @@ The compact search/replace feature aims to implement a token-efficient approach 
 
 ## 2. Current Workflow
 
-1. The AI receives code in text format from files in the chat session.
+1. The AI receives code in text format from files in the chat session. This process involves aider/coders/editblock_coder.py, aider/commands.py, and aider/coders/editblock_prompts.py.
 2. The AI processes the code and generates a response, which may include search/replace (S/R) blocks.
 3. If S/R blocks are present in the AI's response, they are parsed and applied to the relevant files.
 4. The changes are then committed to the git repository (if enabled).
@@ -15,9 +15,9 @@ The current S/R blocks use a verbose format that includes the full context of th
 
 The main scripts involved in this workflow are:
 
-1. `aider/coders/editblock_coder.py`: Contains the `EditBlockCoder` class, which is responsible for parsing and applying the S/R blocks.
-2. `aider/commands.py`: Handles various commands, including those related to git operations.
-3. `aider/coders/editblock_prompts.py`: Defines the prompts used for the edit block format.
+1. aider/coders/editblock_coder.py: Contains the EditBlockCoder class, which is responsible for parsing and applying the S/R blocks.
+2. aider/commands.py: Handles various commands, including those related to git operations.
+3. aider/coders/editblock_prompts.py: Defines the prompts used for the edit block format.
 
 ## 3. Proposed Workflow
 
