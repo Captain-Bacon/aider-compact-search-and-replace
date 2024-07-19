@@ -215,6 +215,90 @@ class Commands:
 
         self.coder.choose_fence()
 
+        # system messages
+        main_sys = self.coder.fmt_system_prompt(self.coder.gpt_prompts.main_system)
+        main_sys += "\n" + self.coder.fmt_system_prompt(self.coder.gpt_prompts.system_reminder)
+        msgs = [
+            dict(role="system", content=main_sys),
+            dict(
+                role="system",
+                content=self.coder.fmt_system_prompt(self.coder.gpt_prompts.system_reminder),
+            ),
+        ]
+
+        tokens = self.coder.main_model.token_count(msgs)
+        res.append((tokens, "system messages", ""))
+
+        # chat history
+        msgs = self.coder.done_messages + self.coder.cur_messages
+        if msgs:
+            msgs = [dict(role="dummy", content=msg) for msg in msgs]
+            tokens = self.coder.main_model.token_count(msgs)
+            res.append((tokens, "chat history", "use /clear to clear"))
+
+        # repo map
+        other_files = set(self.coder.get_all_abs_files()) - set(self.coder.abs_fnames)
+        if self.coder.repo_map:
+            repo_content = self.coder.repo_map.get_repo_map(self.coder.abs_fnames, other_files)
+            if repo_content:
+                tokens = self.coder.main_model.token_count(repo_content)
+                res.append((tokens, "repository map", "use --map-tokens to resize"))
+
+        # files
+        for fname in self.coder.abs_fnames:
+            relative_fname = self.coder.get_rel_fname(fname)
+            content = self.io.read_text(fname)
+            if is_image_file(relative_fname):
+                tokens = self.coder.main_model.token_count_for_image(fname)
+            else:
+                # approximate
+                content = f"{relative_fname}\n```\n" + content + "```\n"
+                tokens = self.coder.main_model.token_count(content)
+            res.append((tokens, f"{relative_fname}", "use /drop to drop from chat"))
+
+        self.io.tool_output("Approximate context window usage, in tokens:")
+        self.io.tool_output()
+
+        width = 8
+        cost_width = 9
+
+        def fmt(v):
+            return format(int(v), ",").rjust(width)
+
+        col_width = max(len(row[1]) for row in res)
+
+        cost_pad = " " * cost_width
+        total = 0
+        total_cost = 0.0
+        for tk, msg, tip in res:
+            total += tk
+            cost = tk * self.coder.main_model.info.get("input_cost_per_token", 0)
+            total_cost += cost
+            msg = msg.ljust(col_width)
+            self.io.tool_output(f"${cost:7.4f} {fmt(tk)} {msg} {tip}")  # noqa: E231
+
+        self.io.tool_output("=" * (width + cost_width + 1))
+        self.io.tool_output(f"${total_cost:7.4f} {fmt(total)} tokens total")  # noqa: E231
+
+        limit = self.coder.main_model.info.get("max_input_tokens", 0)
+        if not limit:
+            return
+
+        remaining = limit - total
+        if remaining > 1024:
+            self.io.tool_output(f"{cost_pad}{fmt(remaining)} tokens remaining in context window")
+        elif remaining > 0:
+            self.io.tool_error(
+                f"{cost_pad}{fmt(remaining)} tokens remaining in context window (use /drop or"
+                " /clear to make space)"
+            )
+        else:
+            self.io.tool_error(
+                f"{cost_pad}{fmt(remaining)} tokens remaining, window exhausted (use /drop or"
+                " /clear to make space)"
+            )
+        self.io.tool_output(f"{cost_pad}{fmt(limit)} tokens max context window size")
+
     def cmd_compact_sr(self, args):
         "Toggle compact search/replace mode"
         self.coder.compact_mode = not self.coder.compact_mode
