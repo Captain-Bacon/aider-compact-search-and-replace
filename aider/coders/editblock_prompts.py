@@ -146,6 +146,6 @@ If you want to put code in a new file, use a *SEARCH/REPLACE block* with:
 - An empty `SEARCH` section
 - The new file's contents in the `REPLACE` section
 
-{lazy_prompt}
+
 ONLY EVER RETURN CODE IN A *SEARCH/REPLACE BLOCK*!
 """
