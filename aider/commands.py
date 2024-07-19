@@ -215,6 +215,12 @@ class Commands:
 
         self.coder.choose_fence()
 
+    def cmd_compact_sr(self, args):
+        "Toggle compact search/replace mode"
+        self.coder.compact_mode = not self.coder.compact_mode
+        mode = "enabled" if self.coder.compact_mode else "disabled"
+        self.io.tool_output(f"Compact search/replace mode {mode}")
+
         # system messages
         main_sys = self.coder.fmt_system_prompt(self.coder.gpt_prompts.main_system)
         main_sys += "\n" + self.coder.fmt_system_prompt(self.coder.gpt_prompts.system_reminder)
