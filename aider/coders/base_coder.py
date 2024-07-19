@@ -70,6 +70,7 @@ class Coder:
     lint_outcome = None
     test_outcome = None
     multi_response_content = ""
+    compact_mode = False
 
     @classmethod
     def create(
