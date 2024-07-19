@@ -9,5 +9,5 @@ Gemfile.lock
 _site
 .jekyll-cache/
 .jekyll-metadata
-.JL_STUFF
+.JL-STUFF
 env/
