@@ -1,152 +1,68 @@
-# Proposed Changes for Compact Search/Replace Implementation
+# Compact Search/Replace Implementation: High-Level Design Document
 
-1. Add a `compact_mode` flag to `EditBlockCoder` class in `aider/coders/editblock_coder.py`:
-   - Add a class variable `compact_mode = False`
-   - Rationale: This flag will allow us to toggle between the standard and compact search/replace modes. It needs to be a class variable so that it can be accessed and modified by other methods within the class.
+## 1. Overview
 
-2. Modify the `get_edits` method in `EditBlockCoder` class in `aider/coders/editblock_coder.py`:
-   - Current behavior: The method only uses `find_original_update_blocks` to parse edits.
-   - Proposed change: Add conditional logic to use either `find_compact_blocks` or `find_original_update_blocks` based on `compact_mode`.
-   - Example:
+The compact search/replace feature aims to implement a token-efficient approach for search and replace blocks in the aider codebase. This feature will allow for more efficient communication between the AI and the program while maintaining the user-friendly full-text representation for human interaction.
 
-     ```python
-     def get_edits(self):
-         content = self.partial_response_content
-         if self.compact_mode:
-             edits = list(find_compact_blocks(content))
-         else:
-             edits = list(find_original_update_blocks(content, self.fence))
-         return edits
-     ```
+## 2. Current Workflow
 
-   - Reasoning: This change allows the `get_edits` method to handle both compact and standard formats, maintaining backwards compatibility while introducing the new feature.
+1. The AI receives code in text format from files in the chat session.
+2. The AI processes the code and generates a response, which may include search/replace (S/R) blocks.
+3. If S/R blocks are present in the AI's response, they are parsed and applied to the relevant files.
+4. The changes are then committed to the git repository (if enabled).
 
-3. Update the `apply_edits` method in `EditBlockCoder` class in `aider/coders/editblock_coder.py`:
-   - Current behavior: The method only uses `do_replace` to apply edits.
-   - Proposed change: Add conditional logic to use either `do_compact_replace` or `do_replace` based on `compact_mode`.
-   - Example:
+The current S/R blocks use a verbose format that includes the full context of the changes, which is helpful for human readability but less efficient in terms of token usage.
 
-     ```python
-     def apply_edits(self, edits):
-         for edit in edits:
-             if self.compact_mode:
-                 self.do_compact_replace(*edit)
-             else:
-                 self.do_replace(*edit)
-     ```
+## 3. Proposed Workflow
 
-   - Rationale: This ensures that the appropriate replacement function is used based on the active mode, allowing for seamless integration of the compact format.
+1. The AI receives code in text format from files in the chat session.
+2. Based on the active mode (standard or compact), the AI generates a response with appropriate S/R blocks.
+3. If compact mode is active:
+   a. The AI uses a more concise format for S/R blocks, specifying only file names, line numbers, and replacement text.
+   b. The system parses these compact S/R blocks and applies the changes to the relevant files.
+4. If standard mode is active, the current workflow is maintained.
+5. The changes are committed to the git repository (if enabled).
 
-4. Implement `find_compact_blocks` function in `aider/coders/editblock_coder.py`:
-   - This new function will parse the compact format edits using regex.
-   - It should extract file path, line numbers, and replacement text.
-   - Example structure:
+## 4. Components Affected
 
-     ```python
-     def find_compact_blocks(content):
-         pattern = r'(\S+):(\d+)-(\d+)\n((?:.*\n)*?)\n'
-         for match in re.finditer(pattern, content):
-             yield match.group(1), int(match.group(2)), int(match.group(3)), match.group(4)
-     ```
+1. `EditBlockCoder` class in `aider/coders/editblock_coder.py`
+2. `Commands` class in `aider/commands.py`
+3. `EditBlockPrompts` class in `aider/coders/editblock_prompts.py`
 
-   - Reasoning: This new function is essential for interpreting the AI's compact output correctly, enabling the system to understand and apply compact edits.
+## 5. Detailed Changes
 
-5. Implement `do_compact_replace` function in `aider/coders/editblock_coder.py`:
-   - This function will replace specified lines in file content with provided replacement text.
-   - Example structure:
+### EditBlockCoder class:
+- Add a `compact_mode` flag to toggle between standard and compact modes.
+- Modify `get_edits` method to use either `find_compact_blocks` or `find_original_update_blocks` based on the mode.
+- Update `apply_edits` method to use either `do_compact_replace` or `do_replace` based on the mode.
+- Implement new `find_compact_blocks` and `do_compact_replace` functions to handle the compact format.
+- Update error messages and logging to reflect the active mode.
 
-     ```python
-     def do_compact_replace(self, file_path, start_line, end_line, replacement_text):
-         with open(file_path, 'r') as file:
-             lines = file.readlines()
-         lines[start_line-1:end_line] = replacement_text.splitlines(True)
-         with open(file_path, 'w') as file:
-             file.writelines(lines)
-     ```
+### Commands class:
+- Add a new `/compact_sr` command to toggle the compact mode.
 
-   - Rationale: This function will perform the actual replacements using the compact format, allowing for more efficient edits by directly targeting specific line ranges.
+### EditBlockPrompts class:
+- Update AI prompts to include instructions for the compact format when appropriate.
 
-6. Update error messages and logging in `apply_edits` method in `EditBlockCoder` class:
-   - Current behavior: Error messages are generic and don't distinguish between edit formats.
-   - Proposed change: Modify messages to reflect whether the edit was in compact or standard format.
-   - Example:
+## 6. Considerations and Unknowns
 
-     ```python
-     try:
-         if self.compact_mode:
-             self.do_compact_replace(*edit)
-         else:
-             self.do_replace(*edit)
-     except ValueError as e:
-         mode = "compact" if self.compact_mode else "standard"
-         self.io.tool_error(f"Error applying {mode} edit: {str(e)}")
-     ```
+- Token savings: We need to measure the actual token savings achieved by the compact mode.
+- Backwards compatibility: Ensure that the system can still handle the standard format when needed.
+- Error handling: Consider how to provide meaningful error messages when parsing compact format fails.
+- User experience: Evaluate how the compact format affects user understanding of proposed changes.
+- Performance: Assess any potential impact on processing time for parsing and applying edits.
 
-   - Reasoning: Clear error messages and logging are crucial for debugging and understanding the system's behavior, especially when introducing a new format. This change will help users and developers identify issues specific to each mode.
+## 7. Implementation Plan
 
-7. Add `/compact_sr` command to `Commands` class in `aider/commands.py`:
-   - Implement a new method to toggle `compact_mode` in `EditBlockCoder`.
-   - Example:
+1. Implement the `compact_mode` flag in `EditBlockCoder`.
+2. Develop the `find_compact_blocks` and `do_compact_replace` functions.
+3. Modify `get_edits` and `apply_edits` methods to use the new functions when in compact mode.
+4. Add the `/compact_sr` command to toggle the mode.
+5. Update AI prompts to include compact format instructions.
+6. Implement logging and metrics for performance tracking.
+7. Create unit tests for the new functionality.
+8. Update documentation to reflect the new feature.
+9. Conduct thorough testing, including edge cases and potential failure modes.
+10. Consider a phased rollout or feature flag to gradually introduce the compact mode to users.
 
-     ```python
-     def cmd_compact_sr(self, args):
-         "Toggle compact search/replace mode"
-         self.coder.compact_mode = not self.coder.compact_mode
-         mode = "enabled" if self.coder.compact_mode else "disabled"
-         self.io.tool_output(f"Compact search/replace mode {mode}")
-     ```
-
-   - Rationale: This command provides users with direct control over which mode to use, allowing for flexibility in different scenarios and easy switching between modes.
-
-8. Update AI prompts in `EditBlockPrompts` class in `aider/coders/editblock_prompts.py`:
-   - Current behavior: Prompts only describe the standard search/replace format.
-   - Proposed change: Add new prompts for compact mode and modify existing prompts to include compact format instructions when appropriate.
-   - Example addition:
-
-     ```python
-     compact_format_instruction = """
-     When compact mode is active, use the following format for edits:
-     filename:start_line-end_line
-     replacement text
-     """
-     ```
-
-   - Reasoning: The AI needs to be aware of the compact mode to provide appropriately formatted responses. These updated prompts will guide the AI in using the correct format based on the active mode.
-
-9. Implement logging and metrics for performance tracking in `aider/coders/editblock_coder.py`:
-   - Add logging for compact mode usage and track metrics such as token savings and processing time improvements.
-   - Example:
-
-     ```python
-     import time
-     
-     def apply_edits(self, edits):
-         start_time = time.time()
-         total_tokens = 0
-         for edit in edits:
-             if self.compact_mode:
-                 total_tokens += self.count_compact_tokens(edit)
-             else:
-                 total_tokens += self.count_standard_tokens(edit)
-             # Apply edit...
-         end_time = time.time()
-         self.log_edit_metrics(self.compact_mode, total_tokens, end_time - start_time)
-     ```
-
-   - Rationale: This data will help evaluate the effectiveness of the compact mode and identify areas for further optimization. It provides concrete metrics to assess the impact of the new feature.
-
-10. Create unit tests for new functionality in `tests/test_editblock_coder.py`:
-    - Add tests for `find_compact_blocks`, `do_compact_replace`, and updated `get_edits` and `apply_edits` methods.
-    - Example test case:
-
-      ```python
-      def test_find_compact_blocks():
-          content = "file.py:10-15\nnew content\nhere\n"
-          blocks = list(find_compact_blocks(content))
-          assert len(blocks) == 1
-          assert blocks[0] == ("file.py", 10, 15, "new content\nhere\n")
-      ```
-
-    - Rationale: Comprehensive testing ensures the reliability and correctness of the new compact mode features. These tests will help catch regressions and ensure that both modes work as expected.
-
-This detailed plan provides specific examples and explanations for the core functionality of the compact search/replace feature. It outlines the necessary changes in each relevant file and explains the reasoning behind each modification.
+This high-level design document provides a narrative overview of the compact search/replace feature, explaining the current and proposed workflows, detailing the components affected, and outlining the implementation plan. It also highlights important considerations and potential unknowns that should be addressed during development.
