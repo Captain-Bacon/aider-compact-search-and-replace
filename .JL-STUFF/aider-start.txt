@@ -1,0 +1,8 @@
+aider  --sonnet --anthropic-api-key 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
+
+aider --openai-api-key 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
+
+
+
+
+can you have a look in  the codebase of this repo and tell me about how the app deals with 'search and replace blocks'?  Specifically I know that it uses them to amend code, but what I want to know is if the blocks are manually enetered by the ai, or if there's a way to get it to enter the search block that is more token friendly?  I know that the AI has to put in the replace block, as that's the code that it's creating, but if it is also fully typing out the search block then that seems like a waste of token when it could do something like refer to lines or something else and then the program replaces the line references with the actual text so that the search/replace function works when executed. 
