@@ -9,97 +9,80 @@ Implement a token-efficient approach for search and replace blocks as an optiona
 1. **Toggle command**: Implement a new system command (e.g., `/compact_sr`) to switch between standard and compact search/replace modes.
 2. **Compact representation**: Develop a format for the AI to output compact search/replace instructions using efficient references.
 3. **Interpretation and expansion**: Create functionality to interpret the compact format and expand it into full SEARCH/REPLACE blocks for user display and application.
-4. **Verification mechanism**: Implement a checksum or hash-based verification system to ensure accuracy of replacements.
+4. **Verification mechanism**: Implement a multi-point verification system to ensure accuracy of replacements.
 
-## Implementation Considerations
+## Implementation Details
 
-### 1. Code Ingestion and AI Representation
+### 1. Compact Representation Format
 
-- Modify how code is initially processed and presented to the AI.
-- Create a mapping between line numbers and content, or generate unique identifiers for code blocks.
+The compact format will consist of:
+- The first line of the code block to be replaced
+- The last line of the code block to be replaced
+- The number of lines between the first and last line
+- The replacement code
 
-### 2. Error Handling
+Example: `["def get_all_commit_hashes_since_tag(tag):", 6, "        return commit_hashes", "replacement code here"]`
 
-- Update the error handling system to work with references instead of direct text matches.
-- Provide context when a reference doesn't match, including surrounding lines.
+### 2. Verification Mechanism
 
-### 3. Verification Mechanism
+The verification process will include:
+- Checking the presence of the first line
+- Checking the presence of the last line
+- Verifying the total number of lines
+- Ensuring the identified block is unique within the file
 
-- Implement a checksum or hash of the block contents.
-- Include the first and last lines of the block to be replaced as a built-in verification mechanism.
+### 3. Git Integration
 
-### 4. AI Prompt Updates
+- Implement a check for uncommitted changes in the target file before applying S/R blocks
+- Notify the AI if there are uncommitted changes that might affect the edit
 
-- Instruct the AI on how to generate compact references.
-- Update prompts to include examples of the new format.
+### 4. Error Handling and Fallback
 
-### 5. Parsing and Interpretation
+- If a compact block is not unique or cannot be applied, fall back to manual editing
+- Provide clear error messages to the AI and user about why a compact edit failed
 
-- Create new functions to parse the compact format and expand it into full SEARCH/REPLACE blocks.
+### 5. User Interface
 
-### 6. User Interface
-
-- Update the UI to display both compact and expanded versions of edits.
-
-### 7. Version Control Integration
-
-- Consider how this change affects integration with version control systems.
-
-### 8. Performance Considerations
-
-- Measure the impact on processing time and memory usage, especially for large files.
-
-### 9. Backwards Compatibility
-
-- Implement a way to switch between compact and standard modes to maintain compatibility with existing workflows.
-
-### 10. Testing Framework
-
-- Develop comprehensive tests for the new functionality, including edge cases and potential failure modes.
+- Expand compact blocks into full S/R blocks for user display
+- Provide an option to view the compact representation for advanced users
 
 ## Implementation Steps
 
-### 1. Core Changes
+1. Modify `EditBlockCoder` class in `aider/coders/editblock_coder.py`:
+   - Add `compact_mode` flag
+   - Implement `toggle_compact_mode` method
+   - Update `get_edits` to handle both compact and standard modes
+   - Implement `find_compact_blocks` method
+   - Update `apply_edits` to handle compact edits
+   - Implement `apply_compact_edits` method
+   - Implement `expand_compact_block` method
 
-- Modify `EditBlockCoder` class to include compact mode functionality.
-- Update `get_edits`, `apply_edits`, and implement new functions for compact parsing.
+2. Update `commands.py` to add the `/compact_sr` command
 
-### 2. Supporting Changes
+3. Modify `GitRepo` class in `repo.py` to check for uncommitted changes
 
-- Update `Coder` base class in `base_coder.py` to support compact mode.
-- Modify `InputOutput` class in `io.py` to handle displaying compact vs. expanded edits.
-- Add `/compact_sr` command in `commands.py`.
-- Update `main.py` to initialize the compact mode flag.
-- Modify `models.py` to update code representation in the model context.
-- Update `GitRepo` class in `repo.py` to handle compact references in version control operations.
-- Add utility functions in `utils.py` for handling compact references and checksums.
-- Update `sendchat.py` to handle sending compact references in chat messages.
-- Modify prompts in `editblock_prompts.py` to include instructions for compact mode.
+4. Update AI prompts in `editblock_prompts.py` to include instructions for compact mode
 
-### 3. Testing and Documentation
+5. Implement error handling and fallback mechanisms
 
-- Create new test files or update existing ones to cover the new functionality.
-- Update user documentation to explain the new compact mode feature.
+6. Update user documentation to explain the new compact mode feature
 
 ## Next Steps
 
-1. Review and refine this implementation plan.
-2. Prioritize implementation steps based on dependencies and complexity.
-3. Begin with a proof-of-concept implementation of key components, starting with the `EditBlockCoder` class.
-4. Implement and test each component separately before integrating them into the main codebase.
-5. Conduct thorough testing, including edge cases and potential failure modes.
-6. Update documentation and user guides to reflect the new functionality.
-7. Consider a phased rollout or feature flag to gradually introduce the compact mode to users.
+1. Implement the core changes in `EditBlockCoder`
+2. Add the `/compact_sr` command
+3. Implement Git integration for change detection
+4. Update AI prompts
+5. Implement error handling and fallback mechanisms
+6. Update user documentation
+7. Conduct thorough testing, including edge cases and potential failure modes
+8. Consider a phased rollout or feature flag to gradually introduce the compact mode to users
 
 ## Open Questions and Considerations
 
-1. What is the most efficient yet unambiguous format for the compact representation?
-2. How do we handle potential mismatches due to file changes between AI response and application?
-3. How will we measure the actual token savings and performance improvements?
-4. How do we ensure this feature doesn't break existing functionality?
-5. How do we best educate users about this new feature and its potential benefits/drawbacks?
-6. Will this work consistently across different AI models and versions?
-7. How do we efficiently handle very large files in the compact format?
-8. What are the security implications of using checksums or hashes for verification?
-9. How do we handle multi-file edits in compact mode?
-10. Should we implement a fallback mechanism if compact mode fails or causes errors?
+1. How will we measure the actual token savings and performance improvements?
+2. How do we ensure this feature doesn't break existing functionality?
+3. How do we best educate users about this new feature and its potential benefits/drawbacks?
+4. Will this work consistently across different AI models and versions?
+5. How do we efficiently handle very large files in the compact format?
+6. How do we handle multi-file edits in compact mode?
